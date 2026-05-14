@@ -1,11 +1,15 @@
 import os
 import shutil
+from pathlib import Path
 
 import validators
 from audio_separator.separator import Separator
 
 from extra_roformers.downloader import Downloader
 from extra_roformers.ffmpeg_utils import FFMPEGUtils
+
+import logging
+logging.getLogger("audio_separator").setLevel(logging.WARNING)
 
 video_audio_track_ext_map = {
     ".mp4": "aac",
@@ -130,34 +134,34 @@ def extra_separator(
     separator.load_model(model)
 
     # --- Postprocess ---
-    for original_file_path in files_to_be_processed:
-        file_path_obj = Path(original_file_path)
+    for file_path in files_to_be_processed:
+        file_path_obj = Path(file_path)
         original_file_ext = file_path_obj.suffix.lower()
         vocal_output_name = file_path_obj.stem
 
         # --- Separate Audio ---
-        target_format = get_output_format(original_file_path)
-        separated_files = separator.separate(path, output_format=target_format.upper(),
-                                             output_filename=f"{path_name_only}_vocals")
+        target_format = get_output_format(file_path)
+        separated_files = separator.separate(file_path, output_format=target_format.upper(),
+                                             output_filename=f"{vocal_output_name}_vocals")
 
         vocal_file_name = separated_files[0]
         vocal_output_path = os.path.join(separator_output_dir, vocal_file_name)
 
         # --- Post-Processing ---
-        is_video = ffmpeg_utils.is_video(original_file_path)
+        is_video = ffmpeg_utils.is_video(file_path)
 
         if is_video:
             print(t["saving_video"].format(path=abs_output_dir))
 
-            final_video_output_path = os.path.join(abs_output_dir, f"{vocal_output_name}{original_file_ext}")
+            final_video_output_path = os.path.join(abs_output_dir, f"{vocal_output_name}_vocals{original_file_ext}")
 
             ffmpeg_utils.replace_video_audio(
-                input_video_path=original_file_path,
+                input_video_path=file_path,
                 input_audio_path=vocal_output_path,
                 final_output_path=final_video_output_path
             )
         else:
-            print(t["saving_video"].format(path=abs_output_dir))
+            print(t["saving_audio"].format(path=abs_output_dir))
 
             final_audio_output_path = os.path.join(abs_output_dir, vocal_file_name)
             shutil.move(vocal_output_path, final_audio_output_path)
@@ -165,5 +169,5 @@ def extra_separator(
     # --- Cleanup ---
     if os.path.exists(temp_output_dir):
         shutil.rmtree(temp_output_dir)
-    if os.path.exists(demucs_output_dir):
-        shutil.rmtree(demucs_output_dir)
+    if os.path.exists(separator_output_dir):
+        shutil.rmtree(separator_output_dir)
