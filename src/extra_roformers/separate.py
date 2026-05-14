@@ -34,6 +34,7 @@ i18n = {
     }
 }
 
+
 def get_output_format(input_filename):
     ext = Path(input_filename).suffix.lower()
 
@@ -99,7 +100,7 @@ def extra_separator(
 
     ffmpeg_utils = FFMPEGUtils()
 
-    file_to_be_processed = []
+    files_to_be_processed = []
 
     # --- Preparing files for processing ---
     print(t["preparing"])
@@ -136,7 +137,8 @@ def extra_separator(
 
         # --- Separate Audio ---
         target_format = get_output_format(original_file_path)
-        separated_files = separator.separate(path, output_format=target_format.upper(), output_filename=f"{path_name_only}_vocals")
+        separated_files = separator.separate(path, output_format=target_format.upper(),
+                                             output_filename=f"{path_name_only}_vocals")
 
         vocal_file_name = separated_files[0]
         vocal_output_path = os.path.join(separator_output_dir, vocal_file_name)
