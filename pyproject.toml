@@ -1,0 +1,32 @@
+[project]
+name = "extra-roformers"
+version = "0.1.0"
+description = "Extended audio-seprator with yt-dlp and Video support."
+license = "MIT License"
+packages = [{ include = "extra_roformers", from = "src" }]
+include = ["LICENSE"]
+readme = "README.md"
+repository = "https://github.com/mohammadmansour200/extra_roformers"
+homepage = "https://baseet.netlify.app/ai"
+keywords = [
+    "audio-separation",
+    "vocal-extract",
+    "music-source-separation",
+    "yt-dlp",
+    "ffmpeg",
+    "deep-learning",
+    "music-remove"
+]
+authors = [
+    { name = "mohammadmansour200", email = "mohammadamansour03@gmail.com" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "yt-dlp>=2026.2.21",
+    "validators>=0.35.0",
+    "audio-separator[gpu]>=0.30.0",
+]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
