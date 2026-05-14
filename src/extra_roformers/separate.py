@@ -118,9 +118,9 @@ def extra_separator(
         if is_url:
             downloaded_file_path = downloader.download(url=url)
 
-            file_to_be_processed.append(downloaded_file_path)
+            files_to_be_processed.append(downloaded_file_path)
         else:
-            file_to_be_processed.append(os.path.abspath(url))
+            files_to_be_processed.append(os.path.abspath(url))
 
     # --- Demucs model inference ---
     separator = Separator(
