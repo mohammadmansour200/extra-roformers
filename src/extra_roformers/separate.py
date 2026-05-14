@@ -1,3 +1,4 @@
+import logging
 import os
 import shutil
 from pathlib import Path
@@ -8,7 +9,6 @@ from audio_separator.separator import Separator
 from extra_roformers.downloader import Downloader
 from extra_roformers.ffmpeg_utils import FFMPEGUtils
 
-import logging
 logging.getLogger("audio_separator").setLevel(logging.WARNING)
 
 video_audio_track_ext_map = {
@@ -20,7 +20,7 @@ video_audio_track_ext_map = {
     ".mov": "aac",
     ".avi": "mp3",
     ".ts": "aac",
-    ".ogg": "vorbis"
+    ".ogg": "vorbis",
 }
 
 i18n = {
@@ -28,14 +28,14 @@ i18n = {
         "preparing": "Preparing files...",
         "error_no_files": "Please provide files for processing.",
         "saving_video": "Saving video in {path}",
-        "saving_audio": "Saving audio in {path}"
+        "saving_audio": "Saving audio in {path}",
     },
     "ar": {
         "preparing": "جاري تحضير الملفات من أجل معالجتها...",
         "error_no_files": "لا يوجد ملفات للمعالجة.",
         "saving_video": "جاري حفظ الفيديو في {path}",
-        "saving_audio": "جاري حفظ الصوت في {path}"
-    }
+        "saving_audio": "جاري حفظ الصوت في {path}",
+    },
 }
 
 
@@ -44,20 +44,21 @@ def get_output_format(input_filename):
 
     if ext in video_audio_track_ext_map:
         target_format = video_audio_track_ext_map[ext]
-    elif ext in ['.wav', '.flac']:
-        target_format = ext.replace('.', '')
+    elif ext in [".wav", ".flac"]:
+        target_format = ext.replace(".", "")
     else:
         target_format = "mp3"
 
     return target_format
 
+
 def extra_separator(
-        files: list[str],
-        download_format: str,
-        quality: str,
-        output_dir: str,
-        model: str = 'vocals_mel_band_roformer.ckpt',
-        lang: str = "ar"
+    media_paths: list[str],
+    download_media_type: str,
+    download_quality: str,
+    output_dir: str,
+    model: str = "vocals_mel_band_roformer.ckpt",
+    lang: str = "ar",
 ):
     """
     Separates vocals from a list of media files (audio/video), using audio-separator, and replaces
@@ -71,9 +72,9 @@ def extra_separator(
     - Segmented processing in case of low-end devices
 
     Parameters:
-        files (list[str]): List of file paths or URLs pointing to audio/video files.
-        download_format (str): Either "audio" or "video". Determines post-processing behavior.
-        quality (str): Quality level for yt-dlp downloading ("high", "low", "medium").
+        media_paths (list[str]): List of file paths or URLs pointing to audio/video files.
+        download_media_type (str): Either "audio" or "video". Determines post-processing behavior.
+        download_quality (str): Quality level for yt-dlp downloading ("high", "low", "medium").
         output_dir (str): Path to directory where final results will be saved.
         model (str): model to be used
         lang (str): Language for logs
@@ -87,87 +88,94 @@ def extra_separator(
     Example:
         extra_separator(
             files=["https://www.youtube.com/watch?v=123", "local_song.mp3"],
-            media_type="audio",
-            quality="medium",
+            download_media_type="audio",
+            download_quality="medium",
             output_dir="output"
         )
     """
     t = i18n[lang]
 
     abs_output_dir = os.path.abspath(output_dir)
-    temp_output_dir = os.path.join(abs_output_dir, 'tmp')
-    separator_output_dir = os.path.join(abs_output_dir, model)
+    temp_output_dir = os.path.join(abs_output_dir, "tmp")
+    model_output_dir = os.path.join(abs_output_dir, model)
 
     # Create directories if they don't exist
     os.makedirs(temp_output_dir, exist_ok=True)
-    os.makedirs(separator_output_dir, exist_ok=True)
+    os.makedirs(model_output_dir, exist_ok=True)
 
     ffmpeg_utils = FFMPEGUtils()
 
-    files_to_be_processed = []
+    files_to_process = []
 
     # --- Preparing files for processing ---
     print(t["preparing"])
 
-    if not files:
+    if not media_paths:
         raise Exception(t["error_no_files"])
 
     downloader = Downloader(
-        output_dir=temp_output_dir,
-        media_type=download_format,
-        quality=quality
+        output_dir=temp_output_dir, media_type=download_media_type, quality=download_quality
     )
-    for index, url in enumerate(files):
+    for url in media_paths:
         is_url = validators.url(url)
         if is_url:
             downloaded_file_path = downloader.download(url=url)
 
-            files_to_be_processed.append(downloaded_file_path)
+            files_to_process.append(downloaded_file_path)
         else:
-            files_to_be_processed.append(os.path.abspath(url))
+            files_to_process.append(os.path.abspath(url))
 
     # --- Demucs model inference ---
     separator = Separator(
-        output_dir=separator_output_dir,
-        output_single_stem='Vocals',
+        output_dir=model_output_dir,
+        output_single_stem="Vocals",
     )
     separator.load_model(model)
 
-    # --- Postprocess ---
-    for file_path in files_to_be_processed:
+    for file_path in files_to_process:
         file_path_obj = Path(file_path)
+
         original_file_ext = file_path_obj.suffix.lower()
-        vocal_output_name = file_path_obj.stem
+        base_filename = file_path_obj.stem
 
         # --- Separate Audio ---
-        target_format = get_output_format(file_path)
-        separated_files = separator.separate(file_path, output_format=target_format.upper(),
-                                             output_filename=f"{vocal_output_name}_vocals")
+        output_names = {
+            "Vocals": f"{base_filename}_vocals",
+        }
+        separated_files = separator.separate(file_path, output_names)
 
         vocal_file_name = separated_files[0]
-        vocal_output_path = os.path.join(separator_output_dir, vocal_file_name)
+        vocal_output_path = os.path.join(model_output_dir, vocal_file_name)
 
         # --- Post-Processing ---
-        is_video = ffmpeg_utils.is_video(file_path)
+        target_format = get_output_format(file_path)
+        processed_file_path = os.path.join(
+            temp_output_dir, f"{output_names['Vocals']}.{target_format}"
+        )
 
+        ffmpeg_utils.convert(vocal_output_path, processed_file_path)
+
+        is_video = ffmpeg_utils.is_video(file_path)
         if is_video:
             print(t["saving_video"].format(path=abs_output_dir))
 
-            final_video_output_path = os.path.join(abs_output_dir, f"{vocal_output_name}_vocals{original_file_ext}")
+            final_video_output_path = os.path.join(
+                abs_output_dir, f"{base_filename}_vocals{original_file_ext}"
+            )
 
             ffmpeg_utils.replace_video_audio(
                 input_video_path=file_path,
-                input_audio_path=vocal_output_path,
-                final_output_path=final_video_output_path
+                input_audio_path=processed_file_path,
+                final_output_path=final_video_output_path,
             )
         else:
             print(t["saving_audio"].format(path=abs_output_dir))
 
             final_audio_output_path = os.path.join(abs_output_dir, vocal_file_name)
-            shutil.move(vocal_output_path, final_audio_output_path)
+            shutil.move(processed_file_path, final_audio_output_path)
 
     # --- Cleanup ---
     if os.path.exists(temp_output_dir):
         shutil.rmtree(temp_output_dir)
-    if os.path.exists(separator_output_dir):
-        shutil.rmtree(separator_output_dir)
+    if os.path.exists(model_output_dir):
+        shutil.rmtree(model_output_dir)

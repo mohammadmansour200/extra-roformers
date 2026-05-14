@@ -58,17 +58,14 @@ class FFMPEGUtils:
         except Exception as e:
             return False
 
-    def convert_to_audio_format(self, output_dir: str, output_name: str, audio_format: str):
-        processed_demucs_file_path = os.path.join(output_dir, f"{output_name}.wav")
-        final_output_file_path = os.path.join(output_dir,
-                                              f"{output_name}.{'mp3' if audio_format is None else audio_format}")
+    def convert(self, input_path: str, output_path: str):
         try:
             subprocess.run([
                 "ffmpeg",
                 "-y",
                 "-loglevel", "quiet",
-                "-i", processed_demucs_file_path,
-                final_output_file_path
+                "-i", input_path,
+                output_path
             ]
                 , check=True)
         except Exception as e:
